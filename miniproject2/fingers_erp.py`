@@ -1,0 +1,72 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+def calc_mean_erp(trial_points, ecog_data):
+    """
+    Calculate mean ERP (Event Related Potential) for each finger movement.
+    
+    Parameters:
+    trial_points: CSV file with starting_point, peak_point, and finger columns
+    ecog_data: CSV file with brain signal data
+    
+    Returns:
+    fingers_erp_mean: 5x1201 matrix with averaged brain response for each finger
+    """
+    
+    # Load the data
+    events = np.loadtxt(trial_points, delimiter=',', skiprows=1, dtype=int)
+    brain_signal = np.loadtxt(ecog_data, delimiter=',')
+    
+    # Create empty matrix to store results: 5 fingers x 1201 time points
+    fingers_erp_mean = np.zeros((5, 1201))
+    
+    # Process each finger 
+    for finger_num in range(1, 6):
+        # Find all trials for this finger
+        finger_trials = events[events[:, 2] == finger_num]
+        
+        # Create list to store all segments for this finger
+        all_segments = []
+        
+        # For each trial of this finger
+        for trial in finger_trials:
+            starting_point = trial[0]
+            
+            # Extract brain data: 200 ms before + 1 ms at start + 1000 ms after
+            # Total = 1201 time points
+            start_index = starting_point - 200
+            end_index = starting_point + 1001
+            
+            # Get the brain signal segment
+            segment = brain_signal[start_index:end_index]
+            all_segments.append(segment)
+        
+        # Convert list to array for easier averaging
+        all_segments = np.array(all_segments)
+        
+        # Calculate mean across all trials 
+        mean_signal = np.mean(all_segments, axis=0)
+        
+        # Store in results matrix 
+        fingers_erp_mean[finger_num - 1, :] = mean_signal
+    
+    # Plot the results
+    plt.figure(figsize=(12, 8))
+    
+    # time axis: -200 to 1000 ms
+    time = np.arange(-200, 1001)
+    
+    # Plot each finger
+    for finger_num in range(1, 6):
+        plt.plot(time, fingers_erp_mean[finger_num - 1, :], label=f'Finger {finger_num}')
+    
+    plt.xlabel('Time (ms)')
+    plt.ylabel('Brain Signal')
+    plt.title('Event Related Potentials for Each Finger')
+    plt.legend()
+    plt.grid(True)
+    plt.axvline(x=0, color='black', linestyle='--', label='Movement Start')
+    plt.show()
+    
+    return fingers_erp_mean
